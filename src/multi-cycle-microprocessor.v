@@ -217,7 +217,7 @@ module alu_control(
     always@(*) begin
         casex({ALUOp, funct7, funct3})
             12'b00_xxxxxxx_xxx: alu_control = 4'b0010; // lw or sw
-            12'b01_xxxxxxx_xxx: alu_control = 4'b0110; // beq
+            12'b01_xxxxxxx_xxx: alu_control = 4'b0110; // beq or bne
 
             12'b10_0000000_000: alu_control = 4'b0010; // add
             12'b10_0100000_000: alu_control = 4'b0110; // subtract
@@ -260,6 +260,7 @@ module alu #(parameter DATA_LENGTH = 32)(
     assign Zero = (result_alu == 0) ? 1 : 0;
 endmodule
 
+/* don't need this anymore if we add bne
 // AND module
 // used to determine if a branch condition is met
 module and_gate(
@@ -270,6 +271,7 @@ module and_gate(
 );
     assign and_out = and_in1 & and_in2;
 endmodule
+*/
 
 // OR module
 // used to determine the PC enable signal
@@ -400,7 +402,10 @@ module microprocessor #(parameter DATA_LENGTH = 32)(
     // MUX 3:1
     wire [DATA_LENGTH-1:0] mux_to_alu;
 
-    // OR
+    // used to choose between bne & beq
+    wire branch_condition;
+
+    // OR & AND
     wire out_of_and_gate;
     wire pc_enable;
 
@@ -429,7 +434,6 @@ module microprocessor #(parameter DATA_LENGTH = 32)(
     wire [3:0] alu_cntrl;
     wire Zero;
 
-
     // ALUOut
     wire [DATA_LENGTH-1:0] aluout_to_mux1_mux2_and_mux3;
 
@@ -446,6 +450,11 @@ module microprocessor #(parameter DATA_LENGTH = 32)(
     wire RegWrite;
     wire [1:0] ALUSrcB;
     wire [1:0] ALUOp;
+
+    // choose between bne & beq
+    assign branch_condition = (instruction[14:12] == 3'b000) ? Zero : (instruction[14:12] == 3'b001) ? ~Zero : 1'b0;
+   
+    assign out_of_and_gate = branch_condition & PCWriteCond;
 
     control CNTRL(
         .clk        (clk),
@@ -471,11 +480,13 @@ module microprocessor #(parameter DATA_LENGTH = 32)(
         .or_out (pc_enable)
     );
 
+    /* don't need this anymore if we add bne 
     and_gate AND(
         .and_in1    (PCWriteCond),
         .and_in2    (Zero),
         .and_out    (out_of_and_gate)
-    );
+    ); 
+    */
 
     program_counter PC(
         .clk     (clk),
